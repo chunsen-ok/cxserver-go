@@ -69,6 +69,7 @@ func main() {
 	db.AutoMigrate(&model.SerialNumber{})
 	db.AutoMigrate(&model.Post{})
 	db.AutoMigrate(&model.Tag{})
+	db.AutoMigrate(&model.PostTag{})
 
 	srv := gin.Default()
 	srv.StaticFile("/", "web/index.html")

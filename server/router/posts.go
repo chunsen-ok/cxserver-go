@@ -10,8 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
+type PostWithTags struct {
+	model.Post
+	Tags []model.Tag `json:"tags"`
+}
+
 func (r *Router) newPost(c *gin.Context) {
-	var m model.Post
+	var m PostWithTags
 	if err := c.ShouldBindJSON(&m); err != nil {
 		es := err.Error()
 		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
@@ -20,7 +25,21 @@ func (r *Router) newPost(c *gin.Context) {
 
 	m.ID = 0
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Create(&m).Error
+		if err := tx.Create(&m.Post).Error; err != nil {
+			return err
+		}
+
+		postTags := make([]model.PostTag, 0)
+		for _, tag := range m.Tags {
+			pt := model.PostTag{
+				PostID: m.ID,
+				TagID:  tag.ID,
+			}
+
+			postTags = append(postTags, pt)
+		}
+
+		return tx.Create(&postTags).Error
 	})
 	if err != nil {
 		es := err.Error()
@@ -39,7 +58,11 @@ func (r *Router) delPost(c *gin.Context) {
 	}
 
 	err = r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Delete(&model.Post{}, id).Error
+		if err := tx.Delete(&model.Post{}, id).Error; err != nil {
+			return err
+		}
+
+		return tx.Where("post_id = ?", id).Delete(&model.PostTag{}).Error
 	})
 	if err != nil {
 		es := err.Error()
@@ -67,18 +90,28 @@ func (r *Router) getPost(c *gin.Context) {
 		c.JSON(http.StatusOK, types.Response{Err: &es})
 	}
 
-	var m model.Post
-	if err := r.db.Find(&m, id).Error; err != nil {
+	var p model.Post
+	if err := r.db.Find(&p, id).Error; err != nil {
 		es := err.Error()
 		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
 		return
+	}
+
+	tags := make([]model.Tag, 0)
+	if err := r.db.Where(`id in (select tag_id from post_tags where post_id = ?)`, id).Find(&tags).Error; err != nil {
+		return
+	}
+
+	m := PostWithTags{
+		Post: p,
+		Tags: tags,
 	}
 
 	c.JSON(http.StatusOK, types.Response{Body: &m})
 }
 
 func (r *Router) updatePost(c *gin.Context) {
-	var m model.Post
+	var m PostWithTags
 	if err := c.ShouldBindJSON(&m); err != nil {
 		es := err.Error()
 		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
@@ -86,12 +119,29 @@ func (r *Router) updatePost(c *gin.Context) {
 	}
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		err := tx.Model(&m).Omit("id").Updates(&m).Error
-		if err != nil {
+		if err := tx.Model(&model.Post{}).Omit("id").Where(`id = ?`, m.ID).Updates(&m.Post).Error; err != nil {
 			return err
 		}
 
-		return tx.First(&m, m.ID).Error
+		if err := tx.Where(`post_id = ?`, m.ID).Delete(&model.PostTag{}).Error; err != nil {
+			return err
+		}
+
+		postTags := make([]model.PostTag, 0)
+		for _, tag := range m.Tags {
+			pt := model.PostTag{
+				PostID: m.ID,
+				TagID:  tag.ID,
+			}
+
+			postTags = append(postTags, pt)
+		}
+
+		if err := tx.Create(&postTags).Error; err != nil {
+			return err
+		}
+
+		return tx.First(&m.Post, m.ID).Error
 	})
 	if err != nil {
 		es := err.Error()
