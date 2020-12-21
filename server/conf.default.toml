@@ -10,5 +10,5 @@ port = 5432
 db = "postgres"
 
 [https]
-cert = "../../../me/perms/ca.crt" # 证书路径
-pkey = "../../../me/perms/tls.key" # 私钥路径
+cert = "" # 证书路径
+pkey = "" # 私钥路径

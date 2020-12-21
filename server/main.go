@@ -24,6 +24,7 @@ import (
 	"cxfw/model"
 	"cxfw/router"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -35,12 +36,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type Router struct {
-	db *gorm.DB
+var (
+	confPath string
+)
+
+func init() {
+	flag.StringVar(&confPath, "c", "conf.toml", "configure file path.")
 }
 
 func main() {
-	conf, err := loadConf("conf.toml")
+	flag.Parse()
+
+	conf, err := loadConf(confPath)
 	if err != nil {
 		log.Fatal(err)
 	}
