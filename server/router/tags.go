@@ -14,6 +14,15 @@ import (
 
 // /var/lib/pgsql/11/data
 
+func (r *Router) tagsRoutes(g gin.IRouter) {
+	tagRouter := g.Group("/tags")
+	tagRouter.POST("/", r.newTag)
+	tagRouter.DELETE("/:id", r.delTag)
+	tagRouter.GET("/", r.getTags)
+	tagRouter.GET("/:id", r.getTag)
+	tagRouter.PUT("/", r.updateTag)
+}
+
 func (r *Router) newTag(c *gin.Context) {
 	var m model.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {

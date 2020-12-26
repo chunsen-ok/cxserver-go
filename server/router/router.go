@@ -22,11 +22,5 @@ func (r *Router) Routes(router gin.IRouter) {
 	snRouter.POST("/", r.genSerialNumber)
 
 	r.postsRoutes(apiRouter)
-
-	tagRouter := apiRouter.Group("/tags")
-	tagRouter.POST("/", r.newTag)
-	tagRouter.DELETE("/:id", r.delTag)
-	tagRouter.GET("/", r.getTags)
-	tagRouter.GET("/:id", r.getTag)
-	tagRouter.PUT("/", r.updateTag)
+	r.tagsRoutes(apiRouter)
 }

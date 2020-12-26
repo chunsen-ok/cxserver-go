@@ -51,9 +51,9 @@ func main() {
 	db.AutoMigrate(&model.PostTag{})
 
 	srv := gin.Default()
-	srv.StaticFile("/", "web/index.html")
-	srv.StaticFile("/favicon.ico", "web/favicon.ico")
-	srv.Static("/static", "web/static")
+	// srv.StaticFile("/", "web/index.html")
+	// srv.StaticFile("/favicon.ico", "web/favicon.ico")
+	// srv.Static("/static", "web/static")
 
 	router := router.Init(db)
 	router.Routes(srv)
