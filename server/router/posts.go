@@ -116,7 +116,7 @@ func (r *Router) delPost(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, types.Response{})
+	c.JSON(http.StatusNoContent, types.Response{})
 }
 
 // param: tags query "标签ID列表"

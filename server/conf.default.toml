@@ -1,6 +1,7 @@
 [server]
 host = "localhost"
 port = 80
+basic_auth = {} # { foo = "bar", ... }
 
 [database]
 user = "postgres"

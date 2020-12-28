@@ -11,4 +11,4 @@ conf.toml
 go.sum
 
 web/
-
+perms/
