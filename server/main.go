@@ -49,6 +49,7 @@ func main() {
 	db.AutoMigrate(&model.Post{})
 	db.AutoMigrate(&model.Tag{})
 	db.AutoMigrate(&model.PostTag{})
+	db.AutoMigrate(&model.PostBadge{})
 
 	srv := gin.Default()
 	// srv.StaticFile("/", "web/index.html")

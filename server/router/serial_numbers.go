@@ -2,19 +2,21 @@ package router
 
 import (
 	"cxfw/model"
-	"cxfw/types"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func (r *Router) genSerialNumber(c *gin.Context) {
+func (r *Router) snRoutes(g gin.IRouter) {
+	group := g.Group("/sn")
+	group.POST("/", route(r.genSerialNumber))
+}
+
+func (r *Router) genSerialNumber(c *gin.Context) (int, interface{}, error) {
 	var m model.SerialNumber
 	if err := c.ShouldBindJSON(&m); err != nil {
-		es := err.Error()
-		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
-		return
+		return http.StatusBadRequest, nil, err
 	}
 
 	m.SerialNumber = 0
@@ -22,10 +24,8 @@ func (r *Router) genSerialNumber(c *gin.Context) {
 		return tx.Create(&m).Error
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: &m})
+	return http.StatusOK, &m, nil
 }

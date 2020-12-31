@@ -1,13 +1,19 @@
 package types
 
+// Status
 const (
-	Active   = iota // 激活
-	InActive        // 未激活
-	InValid         // 失效
-	Trash           // 删除
+	StatusActive   = 0 // 激活
+	StatusInActive = 1 // 未激活
+	StatusInValid  = 2 // 失效
+	StatusTrash    = 3 // 删除
+)
+
+// Badges
+const (
+	BadgeRank = 0 // 置顶排序
 )
 
 type Response struct {
-	Err  *string     `json:"err"`
+	Err  error       `json:"err"`
 	Body interface{} `json:"body"`
 }

@@ -12,12 +12,12 @@ import (
 
 func (r *Router) postsRoutes(router gin.IRouter) {
 	group := router.Group("/posts")
-	group.POST("/", r.newPost)
-	group.DELETE("/:id", r.delPost)
-	group.GET("/", r.getPosts)
-	group.GET("/:id", r.getPost)
-	group.PUT("/", r.updatePost)
-	group.PUT("/status/:id", r.updatePostStatus)
+	group.POST("/", route(r.newPost))
+	group.DELETE("/:id", route(r.delPost))
+	group.GET("/", route(r.getPosts))
+	group.GET("/:id", route(r.getPost))
+	group.PUT("/", route(r.updatePost))
+	group.PUT("/status/:id", route(r.updatePostStatus))
 }
 
 type PostWithTagIDs struct {
@@ -30,14 +30,13 @@ type PostWithTags struct {
 	Tags []model.Tag `json:"tags"`
 }
 
-// param: PostWithTagIDs body
-// return: PostWithTags
-func (r *Router) newPost(c *gin.Context) {
+// route: [POST] /api/posts/
+// param: data body PostWithTagIDs ""
+// response: PostWithTags
+func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 	var m PostWithTagIDs
 	if err := c.ShouldBindJSON(&m); err != nil {
-		es := err.Error()
-		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
-		return
+		return http.StatusBadRequest, nil, err
 	}
 	m.ID = 0
 
@@ -63,33 +62,32 @@ func (r *Router) newPost(c *gin.Context) {
 			}
 		}
 
-		if err := r.db.Where("id in (select tag_id from post_tags where post_id = ?)", m.ID).Find(&tags).Error; err != nil {
+		if err := r.db.Where("id in (select tag_id from post_tags where post_id = ?)", m.ID).
+			Find(&tags).Error; err != nil {
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
 	rm := PostWithTags{
 		Post: m.Post,
 		Tags: tags,
 	}
-	c.JSON(http.StatusOK, types.Response{Body: &rm})
+
+	return http.StatusOK, &rm, nil
 }
 
 // param: id path
 // param: del query "?del=1 remove from database, else set state to 'trash'."
 // return: null
-func (r *Router) delPost(c *gin.Context) {
+func (r *Router) delPost(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusOK, types.Response{Err: &es})
+		return http.StatusOK, nil, err
 	}
 
 	del, _ := strconv.Atoi(c.Query("del"))
@@ -104,25 +102,24 @@ func (r *Router) delPost(c *gin.Context) {
 				return err
 			}
 		} else {
-			if err := tx.Model(&model.Post{}).Where(`id = ?`, id).Update("status", types.Trash).Error; err != nil {
+			if err := tx.Model(&model.Post{}).Where(`id = ?`, id).
+				Update("status", types.StatusTrash).Error; err != nil {
 				return err
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusNoContent, types.Response{})
+	return http.StatusNoContent, nil, nil
 }
 
 // param: tags query "标签ID列表"
 // param: status query "默认获取非trash的。?status=0"
 // return: []model.Post
-func (r *Router) getPosts(c *gin.Context) {
+func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
 	tags := c.QueryArray("tag")
 	status, _ := strconv.Atoi(c.Query("status"))
 
@@ -132,32 +129,29 @@ func (r *Router) getPosts(c *gin.Context) {
 		d = d.Where("id in (select post_id from post_tags where tag_id in ?)", tags)
 	}
 	if err := d.Find(&posts).Error; err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: posts})
+	return http.StatusOK, posts, nil
 }
 
 // param: id query "post id"
 // return: model.Post
-func (r *Router) getPost(c *gin.Context) {
+func (r *Router) getPost(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusOK, types.Response{Err: &es})
+		return http.StatusBadRequest, nil, err
 	}
 
 	var p model.Post
 	if err := r.db.Find(&p, id).Error; err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
 	tags := make([]model.Tag, 0)
-	if err := r.db.Where(`id in (select tag_id from post_tags where post_id = ?)`, id).Find(&tags).Error; err != nil {
-		return
+	if err := r.db.Where(`id in (select tag_id from post_tags where post_id = ?)`, id).
+		Find(&tags).Error; err != nil {
+		return http.StatusInternalServerError, nil, err
 	}
 
 	m := PostWithTags{
@@ -165,22 +159,21 @@ func (r *Router) getPost(c *gin.Context) {
 		Tags: tags,
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: &m})
+	return http.StatusOK, &m, nil
 }
 
 // param: PostWithTagIDs body
 // return: PostWithTags
-func (r *Router) updatePost(c *gin.Context) {
+func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
 	var m PostWithTagIDs
 	if err := c.ShouldBindJSON(&m); err != nil {
-		es := err.Error()
-		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
-		return
+		return http.StatusBadRequest, nil, err
 	}
 
 	tags := make([]model.Tag, 0)
 	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.Post{}).Omit("id").Where(`id = ?`, m.ID).Updates(&m.Post).Error; err != nil {
+		if err := tx.Model(&model.Post{}).Omit("id").Where(`id = ?`, m.ID).
+			Updates(&m.Post).Error; err != nil {
 			return err
 		}
 
@@ -204,34 +197,32 @@ func (r *Router) updatePost(c *gin.Context) {
 			}
 		}
 
-		if err := tx.Where(`id in (select tag_id from post_tags where post_id = ?)`, m.ID).Find(&tags).Error; err != nil {
+		if err := tx.Where(`id in (select tag_id from post_tags where post_id = ?)`, m.ID).
+			Find(&tags).Error; err != nil {
 			return err
 		}
 
 		return nil
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
 	rm := PostWithTags{
 		Post: m.Post,
 		Tags: tags,
 	}
-	c.JSON(http.StatusOK, types.Response{Body: &rm})
+
+	return http.StatusOK, &rm, nil
 }
 
 // route: /api/posts/status/:id
 // param: id path
 // param: status query "?status=1"
-func (r *Router) updatePostStatus(c *gin.Context) {
+func (r *Router) updatePostStatus(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusOK, types.Response{Err: &es})
-		return
+		return http.StatusOK, nil, err
 	}
 
 	status, _ := strconv.Atoi(c.Query("status"))
@@ -243,10 +234,8 @@ func (r *Router) updatePostStatus(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{})
+	return http.StatusOK, nil, nil
 }

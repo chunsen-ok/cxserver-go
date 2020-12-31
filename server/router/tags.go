@@ -2,7 +2,6 @@ package router
 
 import (
 	"cxfw/model"
-	"cxfw/types"
 	"net/http"
 	"strconv"
 
@@ -16,19 +15,17 @@ import (
 
 func (r *Router) tagsRoutes(g gin.IRouter) {
 	tagRouter := g.Group("/tags")
-	tagRouter.POST("/", r.newTag)
-	tagRouter.DELETE("/:id", r.delTag)
-	tagRouter.GET("/", r.getTags)
-	tagRouter.GET("/:id", r.getTag)
-	tagRouter.PUT("/", r.updateTag)
+	tagRouter.POST("/", route(r.newTag))
+	tagRouter.DELETE("/:id", route(r.delTag))
+	tagRouter.GET("/", route(r.getTags))
+	tagRouter.GET("/:id", route(r.getTag))
+	tagRouter.PUT("/", route(r.updateTag))
 }
 
-func (r *Router) newTag(c *gin.Context) {
+func (r *Router) newTag(c *gin.Context) (int, interface{}, error) {
 	var m model.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
-		es := err.Error()
-		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
-		return
+		return http.StatusBadRequest, nil, err
 	}
 
 	m.ID = 0
@@ -36,66 +33,55 @@ func (r *Router) newTag(c *gin.Context) {
 		return tx.Create(&m).Error
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: &m})
+	return http.StatusOK, &m, nil
 }
 
-func (r *Router) delTag(c *gin.Context) {
+func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusOK, types.Response{Err: &es})
+		return http.StatusOK, nil, err
 	}
 
 	err = r.db.Transaction(func(tx *gorm.DB) error {
 		return tx.Delete(&model.Tag{}, id).Error
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{})
+	return http.StatusOK, nil, nil
 }
 
-func (r *Router) getTags(c *gin.Context) {
+func (r *Router) getTags(c *gin.Context) (int, interface{}, error) {
 	tags := make([]model.Tag, 0)
 	if err := r.db.Omit("content").Find(&tags).Error; err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: tags})
+	return http.StatusOK, tags, nil
 }
 
-func (r *Router) getTag(c *gin.Context) {
+func (r *Router) getTag(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusOK, types.Response{Err: &es})
+		return http.StatusOK, nil, err
 	}
 
 	var m model.Tag
 	if err := r.db.Find(&m, id).Error; err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: &m})
+	return http.StatusOK, &m, nil
 }
 
-func (r *Router) updateTag(c *gin.Context) {
+func (r *Router) updateTag(c *gin.Context) (int, interface{}, error) {
 	var m model.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
-		es := err.Error()
-		c.JSON(http.StatusBadRequest, types.Response{Err: &es})
-		return
+		return http.StatusBadRequest, nil, err
 	}
 
 	err := r.db.Transaction(func(tx *gorm.DB) error {
@@ -107,10 +93,8 @@ func (r *Router) updateTag(c *gin.Context) {
 		return tx.First(&m, m.ID).Error
 	})
 	if err != nil {
-		es := err.Error()
-		c.JSON(http.StatusInternalServerError, types.Response{Err: &es})
-		return
+		return http.StatusInternalServerError, nil, err
 	}
 
-	c.JSON(http.StatusOK, types.Response{Body: &m})
+	return http.StatusOK, &m, nil
 }
