@@ -1,12 +1,12 @@
 package router
 
 import (
+	"context"
 	"cxfw/model"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 //  /usr/pgsql-11/bin
@@ -27,12 +27,19 @@ func (r *Router) newTag(c *gin.Context) (int, interface{}, error) {
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
-
 	m.ID = 0
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Create(&m).Error
-	})
+
+	tx, err := r.db.Begin(context.Background())
 	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	err = tx.QueryRow(context.Background(), `insert into tags values (default, $1, now()) returing id;`, m.Title).Scan(&m.ID)
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 
@@ -45,10 +52,17 @@ func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
 		return http.StatusOK, nil, err
 	}
 
-	err = r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Delete(&model.Tag{}, id).Error
-	})
+	tx, err := r.db.Begin(context.Background())
 	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	_, err = tx.Exec(context.Background(), `delete from tags where id = $1`, id)
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 
@@ -56,10 +70,22 @@ func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
 }
 
 func (r *Router) getTags(c *gin.Context) (int, interface{}, error) {
-	tags := make([]model.Tag, 0)
-	if err := r.db.Omit("content").Find(&tags).Error; err != nil {
+	rows, err := r.db.Query(context.Background(), `select * from tags order by created_at asc;`)
+	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
+
+	tags := make([]model.Tag, 0)
+	for rows.Next() {
+		var tag model.Tag
+		err := rows.Scan(&tag.ID, &tag.Title, &tag.CreatedAt)
+		if err != nil {
+			rows.Close()
+			return http.StatusInternalServerError, nil, err
+		}
+		tags = append(tags, tag)
+	}
+	rows.Close()
 
 	return http.StatusOK, tags, nil
 }
@@ -71,7 +97,9 @@ func (r *Router) getTag(c *gin.Context) (int, interface{}, error) {
 	}
 
 	var m model.Tag
-	if err := r.db.Find(&m, id).Error; err != nil {
+	err = r.db.QueryRow(context.Background(), `select * from tags where id = $1`, id).
+		Scan(&m.ID, &m.Title, &m.CreatedAt)
+	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 
@@ -84,15 +112,17 @@ func (r *Router) updateTag(c *gin.Context) (int, interface{}, error) {
 		return http.StatusBadRequest, nil, err
 	}
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		err := tx.Model(&m).Omit("id").Updates(&m).Error
-		if err != nil {
-			return err
-		}
-
-		return tx.First(&m, m.ID).Error
-	})
+	tx, err := r.db.Begin(context.Background())
 	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	_, err = tx.Exec(context.Background(), `update tags set title = $1 where id = $1`, m.Title, m.ID)
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 

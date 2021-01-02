@@ -1,19 +1,17 @@
 package main
 
 import (
+	"context"
 	"cxfw/conf"
-	"cxfw/model"
+	"cxfw/orm"
 	"cxfw/router"
 	"flag"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/gin-gonic/gin"
-
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
@@ -33,30 +31,42 @@ func main() {
 	}
 	fmt.Println(conf.DatabaseURL())
 
-	db, err := gorm.Open(postgres.Open(conf.DatabaseURL()),
-		&gorm.Config{
-			NowFunc: func() time.Time {
-				return time.Now().UTC()
-			},
-			Logger: logger.Default.LogMode(logger.Info),
-		},
-	)
+	// db, err := gorm.Open(postgres.Open(conf.DatabaseURL()),
+	// 	&gorm.Config{
+	// 		NowFunc: func() time.Time {
+	// 			return time.Now().UTC()
+	// 		},
+	// 		Logger: logger.Default.LogMode(logger.Info),
+	// 	},
+	// )
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// db.AutoMigrate(&model.SerialNumber{})
+	// db.AutoMigrate(&model.Post{})
+	// db.AutoMigrate(&model.Tag{})
+	// db.AutoMigrate(&model.PostTag{})
+	// db.AutoMigrate(&model.PostBadge{})
+	connConfig, err := pgxpool.ParseConfig(conf.DatabaseURL())
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	db.AutoMigrate(&model.SerialNumber{})
-	db.AutoMigrate(&model.Post{})
-	db.AutoMigrate(&model.Tag{})
-	db.AutoMigrate(&model.PostTag{})
-	db.AutoMigrate(&model.PostBadge{})
+	connConfig.ConnConfig.LogLevel = pgx.LogLevelInfo
+	connConfig.ConnConfig.Logger = new(orm.Logger)
+
+	dbPool, err := pgxpool.ConnectConfig(context.Background(), connConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	srv := gin.Default()
 	// srv.StaticFile("/", "web/index.html")
 	// srv.StaticFile("/favicon.ico", "web/favicon.ico")
 	// srv.Static("/static", "web/static")
 
-	router := router.Init(db)
+	router := router.Init(dbPool)
 	router.Routes(srv)
 
 	if err := srv.RunTLS(fmt.Sprintf("%s:%d", conf.SrvHost, conf.SrvPort), conf.Cert, conf.PKey); err != nil {

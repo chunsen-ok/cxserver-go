@@ -1,11 +1,14 @@
 package router
 
 import (
+	"context"
 	"cxfw/model"
 	"net/http"
+	"strconv"
+
+	"cxfw/types"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 func (r *Router) badgesRoutes(g gin.IRouter) {
@@ -24,10 +27,51 @@ func (r *Router) newPostBadge(c *gin.Context) (int, interface{}, error) {
 		return http.StatusBadRequest, nil, err
 	}
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Create(&m).Error
-	})
+	tx, err := r.db.Begin(context.Background())
 	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+	defer tx.Rollback(context.Background())
+
+	if m.BadgeName == types.BadgeRank {
+		_, err := tx.Exec(context.Background(), `delete from post_badges where badge_name = $1 and post_id = $2`, types.BadgeRank, m.PostID)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		rows, err := tx.Query(context.Background(), `select * from post_badges where badge_name = $1 order by badge_value asc;`, types.BadgeRank)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		pbs := make([]model.PostBadge, 0)
+		for rows.Next() {
+			var pb model.PostBadge
+			err := rows.Scan(&pb.BadgeName, &pb.BadgeValue, &pb.PostID)
+			if err != nil {
+				rows.Close()
+				return http.StatusInternalServerError, nil, err
+			}
+			pbs = append(pbs, pb)
+		}
+		rows.Close()
+
+		_, err = tx.Exec(context.Background(), `delete from post_badges where badge_name = $1`, types.BadgeRank)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		pbs = append(pbs, m)
+		for i := 0; i < len(pbs); i++ {
+			v := strconv.Itoa(i)
+			_, err := tx.Exec(context.Background(), `insert into post_badges values ($1, $2, $3);`, types.BadgeRank, v, pbs[i].PostID)
+			if err != nil {
+				return http.StatusInternalServerError, nil, err
+			}
+		}
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 
@@ -42,10 +86,50 @@ func (r *Router) removePostBadge(c *gin.Context) (int, interface{}, error) {
 		return http.StatusBadRequest, nil, err
 	}
 
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		return tx.Delete(&m).Error
-	})
+	tx, err := r.db.Begin(context.Background())
 	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+	defer tx.Rollback(context.Background())
+
+	if m.BadgeName == types.BadgeRank {
+		_, err := tx.Exec(context.Background(), `delete from post_badges where badge_name = $1 and post_id = $2`, types.BadgeRank, m.PostID)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		rows, err := tx.Query(context.Background(), `select * from post_badges where badge_name = $1 order by badge_value asc;`, types.BadgeRank)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		pbs := make([]model.PostBadge, 0)
+		for rows.Next() {
+			var pb model.PostBadge
+			err := rows.Scan(&pb.BadgeName, &pb.BadgeValue, &pb.PostID)
+			if err != nil {
+				rows.Close()
+				return http.StatusInternalServerError, nil, err
+			}
+			pbs = append(pbs, pb)
+		}
+		rows.Close()
+
+		_, err = tx.Exec(context.Background(), `delete from post_badges where badge_name = $1`, types.BadgeRank)
+		if err != nil {
+			return http.StatusInternalServerError, nil, err
+		}
+
+		for i := 0; i < len(pbs); i++ {
+			v := strconv.Itoa(i)
+			_, err := tx.Exec(context.Background(), `insert into post_badges values ($1, $2, $3);`, types.BadgeRank, v, pbs[i].PostID)
+			if err != nil {
+				return http.StatusInternalServerError, nil, err
+			}
+		}
+	}
+
+	if err := tx.Commit(context.Background()); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 

@@ -5,10 +5,21 @@ import (
 )
 
 type Post struct {
-	ID        int       `json:"id" gorm:"column:id;primaryKey;<-:false"`
-	Title     string    `json:"title" gorm:"column:title"`
-	Content   string    `json:"content" gorm:"column:content"`
-	Status    int       `json:"status" gorm:"column:status;default:0"`
-	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;type:timestamp;<-:create"` // UTC时间
-	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;type:timestamp"`           // UTC时间
+	ID        int       `json:"id"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	Status    int16     `json:"status"`
+	CreatedAt time.Time `json:"created_at"` // UTC时间
+	UpdatedAt time.Time `json:"updated_at"` // UTC时间
 }
+
+const postSQL = `
+CREATE TABLE IF NOT EXISTS posts (
+	id serial primary key,
+	title text null,
+	content text null,
+	status smallint not null,
+	created_at timestamp(0) not null default now(),
+	updated_at timestamp(0) not null default now()
+);
+`

@@ -5,7 +5,7 @@ import (
 	"cxfw/types"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // RouteHandler ...
@@ -20,11 +20,11 @@ func route(h RouteHandler) gin.HandlerFunc {
 
 // Router ...
 type Router struct {
-	db *gorm.DB
+	db *pgxpool.Pool
 }
 
 // Init ...
-func Init(db *gorm.DB) *Router {
+func Init(db *pgxpool.Pool) *Router {
 	return &Router{
 		db: db,
 	}

@@ -1,6 +1,13 @@
 package model
 
 type PostTag struct {
-	PostID int `json:"post_id" gorm:"column:post_id;not null"`
-	TagID int `json:"tag_id" gorm:"column:tag_id;not null"`
+	PostID int `json:"post_id"`
+	TagID  int `json:"tag_id"`
 }
+
+const postTagSQL = `
+CREATE TABLE IF NOT EXISTS post_tags (
+	post_id integer NOT NULL,
+	tag_id integer NOT NULL,
+	UNIQUE (post_id, tag_id)
+);`
