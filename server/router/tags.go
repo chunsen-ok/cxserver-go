@@ -34,7 +34,7 @@ func (r *Router) newTag(c *gin.Context) (int, interface{}, error) {
 		return http.StatusInternalServerError, nil, err
 	}
 
-	err = tx.QueryRow(context.Background(), `insert into tags values (default, $1, now()) returing id;`, m.Title).Scan(&m.ID)
+	err = tx.QueryRow(context.Background(), `insert into tags values (default, $1, now() at time zone 'utc') returing id;`, m.Title).Scan(&m.ID)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}

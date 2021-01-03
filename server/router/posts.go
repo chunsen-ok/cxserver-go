@@ -61,7 +61,7 @@ func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 	defer tx.Rollback(context.Background())
 
 	err = tx.QueryRow(context.Background(),
-		`insert into posts values (default, $1, $2, $3, now(), now()) returning id`,
+		`insert into posts values (default, $1, $2, $3, now() at time zone 'utc', now() at time zone 'utc') returning id`,
 		m.Title, m.Content, types.StatusActive).Scan(&m.ID)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
@@ -179,7 +179,7 @@ func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
 	postsMap := make(map[int]PostWithBadges, 0)
 	for rows.Next() {
 		var p PostWithBadges
-		var b PostBadge
+		var b *PostBadge
 		err := rows.Scan(&p.ID, &p.Title, &p.Status, &p.CreatedAt, &p.UpdatedAt, &b)
 		if err != nil {
 			rows.Close()
@@ -187,10 +187,14 @@ func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
 		}
 		pb, ok := postsMap[p.ID]
 		if !ok {
-			p.Badges = []PostBadge{b}
+			if b != nil {
+				p.Badges = []PostBadge{*b}
+			}
 			postsMap[p.ID] = p
 		} else {
-			pb.Badges = append(pb.Badges, b)
+			if b != nil {
+				pb.Badges = append(pb.Badges, *b)
+			}
 			postsMap[p.ID] = pb
 		}
 	}
@@ -204,6 +208,10 @@ func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
 	sort.Slice(posts, func(i, j int) bool {
 		lhs := posts[i].Badges
 		rhs := posts[j].Badges
+
+		if lhs == nil && rhs == nil {
+			return posts[j].UpdatedAt.Before(posts[i].UpdatedAt)
+		}
 
 		if lhs == nil {
 			return false
@@ -302,7 +310,7 @@ func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
 	defer tx.Rollback(context.Background())
 
 	bt := pgx.Batch{}
-	bt.Queue(`update posts set title = $1, content = $2, updated_at = now() where id = $3`,
+	bt.Queue(`update posts set title = $1, content = $2, updated_at = now() at time zone 'utc' where id = $3`,
 		m.Title, m.Content, m.ID)
 	bt.Queue(`delete from post_tags where post_id = $1`, m.ID)
 	for _, tagID := range m.TagIDs {
