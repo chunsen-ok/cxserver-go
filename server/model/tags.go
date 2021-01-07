@@ -6,7 +6,7 @@ type Tag struct {
 	ID        int       `json:"id"`
 	Title     string    `json:"title"`
 	Parent    int       `json:"parent"`
-	CreatedAt time.Time `json:"create_time"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 const tagSQL = `

@@ -76,7 +76,7 @@ func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
 }
 
 func (r *Router) getTags(c *gin.Context) (int, interface{}, error) {
-	rows, err := r.db.Query(context.Background(), `select * from tags;`)
+	rows, err := r.db.Query(context.Background(), `select * from tags order by created_at asc;`)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -123,7 +123,7 @@ func (r *Router) updateTag(c *gin.Context) (int, interface{}, error) {
 		return http.StatusInternalServerError, nil, err
 	}
 
-	_, err = tx.Exec(context.Background(), `update tags set title = $1 where id = $1`, m.Title, m.ID)
+	_, err = tx.Exec(context.Background(), `update tags set title = $1 where id = $2`, m.Title, m.ID)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
