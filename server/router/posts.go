@@ -85,7 +85,7 @@ func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 
 		for rows.Next() {
 			var tag model.Tag
-			err := rows.Scan(&tag.ID, &tag.Title, nil)
+			err := rows.Scan(&tag.ID, &tag.Title, nil, nil)
 			if err != nil {
 				rows.Close()
 				return http.StatusInternalServerError, nil, err
@@ -278,7 +278,7 @@ func (r *Router) getPost(c *gin.Context) (int, interface{}, error) {
 	tags := make([]model.Tag, 0)
 	for rows.Next() {
 		var tag model.Tag
-		err := rows.Scan(&tag.ID, &tag.Title, &tag.CreatedAt)
+		err := rows.Scan(&tag.ID, &tag.Title, &tag.CreatedAt, &tag.Parent)
 		if err != nil {
 			rows.Close()
 			return http.StatusInternalServerError, nil, err
@@ -328,7 +328,7 @@ func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
 	tags := make([]model.Tag, 0)
 	for rows.Next() {
 		var tag model.Tag
-		err := rows.Scan(&tag.ID, &tag.Title, nil)
+		err := rows.Scan(&tag.ID, &tag.Title, nil, nil)
 		if err != nil {
 			rows.Close()
 			return http.StatusInternalServerError, nil, err
