@@ -1,25 +1,26 @@
-package router
+package writer
 
 import (
 	"context"
-	"cxfw/model"
+	"cxfw/model/writer"
+	"cxfw/router/internal/router"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func (r *Router) tagsRoutes(g gin.IRouter) {
-	tagRouter := g.Group("/tags")
-	tagRouter.POST("/", route(r.newTag))
-	tagRouter.DELETE("/:id", route(r.delTag))
-	tagRouter.GET("/", route(r.getTags))
-	tagRouter.GET("/:id", route(r.getTag))
-	tagRouter.PUT("/", route(r.updateTag))
+func (r *WriterRouter) tagsRoutes(ro gin.IRouter) {
+	g := ro.Group("/tags")
+	g.POST("/", router.Route(r.newTag))
+	g.DELETE("/:id", router.Route(r.delTag))
+	g.GET("/", router.Route(r.getTags))
+	g.GET("/:id", router.Route(r.getTag))
+	g.PUT("/", router.Route(r.updateTag))
 }
 
-func (r *Router) newTag(c *gin.Context) (int, interface{}, error) {
-	var m model.Tag
+func (r *WriterRouter) newTag(c *gin.Context) (int, interface{}, error) {
+	var m writer.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
@@ -46,7 +47,7 @@ func (r *Router) newTag(c *gin.Context) (int, interface{}, error) {
 
 // 删除一个标签时，将其子标签放到其父标签下
 // 关联的 post直接删除关联关系即可
-func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) delTag(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err
@@ -75,15 +76,15 @@ func (r *Router) delTag(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, nil, nil
 }
 
-func (r *Router) getTags(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) getTags(c *gin.Context) (int, interface{}, error) {
 	rows, err := r.db.Query(context.Background(), `select * from tags order by created_at asc;`)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
 
-	tags := make([]model.Tag, 0)
+	tags := make([]writer.Tag, 0)
 	for rows.Next() {
-		var tag model.Tag
+		var tag writer.Tag
 		err := rows.Scan(&tag.ID, &tag.Title, &tag.CreatedAt, &tag.Parent)
 		if err != nil {
 			rows.Close()
@@ -96,13 +97,13 @@ func (r *Router) getTags(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, tags, nil
 }
 
-func (r *Router) getTag(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) getTag(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err
 	}
 
-	var m model.Tag
+	var m writer.Tag
 	err = r.db.QueryRow(context.Background(), `select * from tags where id = $1`, id).
 		Scan(&m.ID, &m.Title, &m.CreatedAt)
 	if err != nil {
@@ -112,8 +113,8 @@ func (r *Router) getTag(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, &m, nil
 }
 
-func (r *Router) updateTag(c *gin.Context) (int, interface{}, error) {
-	var m model.Tag
+func (r *WriterRouter) updateTag(c *gin.Context) (int, interface{}, error) {
+	var m writer.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}

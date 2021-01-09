@@ -2,40 +2,30 @@ package router
 
 import (
 	"cxfw/conf"
-	"cxfw/types"
+	"cxfw/router/todos"
+	"cxfw/router/writer"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-// RouteHandler ...
-type RouteHandler = func(c *gin.Context) (int, interface{}, error)
-
-func route(h RouteHandler) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		code, data, err := h(c)
-		c.JSON(code, types.Response{Err: err, Body: data})
-	}
-}
-
 // Router ...
 type Router struct {
-	db *pgxpool.Pool
+	writer *writer.WriterRouter
+	todos  *todos.Service
 }
 
 // Init ...
-func Init(db *pgxpool.Pool) *Router {
+func New(db *pgxpool.Pool) *Router {
 	return &Router{
-		db: db,
+		writer: writer.New(db),
+		todos:  todos.New(db),
 	}
 }
 
 // Routes .
-func (r *Router) Routes(router gin.IRouter) {
-	apiRouter := router.Group("/api", gin.BasicAuth(conf.Instance().BasicAuth))
-
-	r.postsRoutes(apiRouter)
-	r.tagsRoutes(apiRouter)
-	r.badgesRoutes(apiRouter)
-	// r.snRoutes(apiRouter)
+func (s *Router) Routes(router gin.IRouter) {
+	g := router.Group("/api", gin.BasicAuth(conf.Instance().BasicAuth))
+	s.writer.Init(g)
+	s.todos.Init(g)
 }

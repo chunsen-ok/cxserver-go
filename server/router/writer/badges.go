@@ -1,8 +1,9 @@
-package router
+package writer
 
 import (
 	"context"
-	"cxfw/model"
+	"cxfw/model/writer"
+	"cxfw/router/internal/router"
 	"net/http"
 	"strconv"
 
@@ -11,18 +12,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (r *Router) badgesRoutes(g gin.IRouter) {
-	group := g.Group("/badges")
-	group.POST("/", route(r.newPostBadge))
-	group.DELETE("/", route(r.removePostBadge))
+func (r *WriterRouter) badgesRoutes(ro gin.IRouter) {
+	g := ro.Group("/badges")
+	g.POST("/", router.Route(r.newPostBadge))
+	g.DELETE("/", router.Route(r.removePostBadge))
 }
 
 // route: [POST] /api/badges/
 // param: id path int "post id"
 // param: name path int "badge name by badge enums"
 // param: value query string "badge value"
-func (r *Router) newPostBadge(c *gin.Context) (int, interface{}, error) {
-	var m model.PostBadge
+func (r *WriterRouter) newPostBadge(c *gin.Context) (int, interface{}, error) {
+	var m writer.PostBadge
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
@@ -44,9 +45,9 @@ func (r *Router) newPostBadge(c *gin.Context) (int, interface{}, error) {
 			return http.StatusInternalServerError, nil, err
 		}
 
-		pbs := make([]model.PostBadge, 0)
+		pbs := make([]writer.PostBadge, 0)
 		for rows.Next() {
-			var pb model.PostBadge
+			var pb writer.PostBadge
 			err := rows.Scan(&pb.BadgeName, &pb.BadgeValue, &pb.PostID)
 			if err != nil {
 				rows.Close()
@@ -79,9 +80,9 @@ func (r *Router) newPostBadge(c *gin.Context) (int, interface{}, error) {
 }
 
 // route: [DELETE] /api/badges/
-// param: data body model.PostBadge "match data"
-func (r *Router) removePostBadge(c *gin.Context) (int, interface{}, error) {
-	var m model.PostBadge
+// param: data body writer.PostBadge "match data"
+func (r *WriterRouter) removePostBadge(c *gin.Context) (int, interface{}, error) {
+	var m writer.PostBadge
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
@@ -103,9 +104,9 @@ func (r *Router) removePostBadge(c *gin.Context) (int, interface{}, error) {
 			return http.StatusInternalServerError, nil, err
 		}
 
-		pbs := make([]model.PostBadge, 0)
+		pbs := make([]writer.PostBadge, 0)
 		for rows.Next() {
-			var pb model.PostBadge
+			var pb writer.PostBadge
 			err := rows.Scan(&pb.BadgeName, &pb.BadgeValue, &pb.PostID)
 			if err != nil {
 				rows.Close()

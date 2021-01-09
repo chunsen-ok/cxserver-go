@@ -1,4 +1,4 @@
-package model
+package writer
 
 import (
 	"time"
@@ -13,7 +13,7 @@ type Post struct {
 	UpdatedAt time.Time `json:"updated_at"` // UTC时间
 }
 
-const postSQL = `
+const PostSQL = `
 CREATE TABLE IF NOT EXISTS posts (
 	id serial primary key,
 	title text null,

@@ -1,8 +1,9 @@
-package router
+package writer
 
 import (
 	"context"
-	"cxfw/model"
+	"cxfw/model/writer"
+	"cxfw/router/internal/router"
 	"cxfw/types"
 	"fmt"
 	"net/http"
@@ -14,24 +15,24 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (r *Router) postsRoutes(router gin.IRouter) {
-	group := router.Group("/posts")
-	group.POST("/", route(r.newPost))
-	group.DELETE("/:id", route(r.delPost))
-	group.GET("/", route(r.getPosts))
-	group.GET("/:id", route(r.getPost))
-	group.PUT("/", route(r.updatePost))
-	group.PUT("/status/:id", route(r.updatePostStatus))
+func (r *WriterRouter) postsRoutes(ro gin.IRouter) {
+	g := ro.Group("/posts")
+	g.POST("/", router.Route(r.newPost))
+	g.DELETE("/:id", router.Route(r.delPost))
+	g.GET("/", router.Route(r.getPosts))
+	g.GET("/:id", router.Route(r.getPost))
+	g.PUT("/", router.Route(r.updatePost))
+	g.PUT("/status/:id", router.Route(r.updatePostStatus))
 }
 
 type PostWithTagIDs struct {
-	model.Post
+	writer.Post
 	TagIDs []int `json:"tags"`
 }
 
 type PostWithTags struct {
-	model.Post
-	Tags []model.Tag `json:"tags"`
+	writer.Post
+	Tags []writer.Tag `json:"tags"`
 }
 
 type PostBadge struct {
@@ -40,14 +41,14 @@ type PostBadge struct {
 }
 
 type PostWithBadges struct {
-	model.Post
+	writer.Post
 	Badges []PostBadge `json:"badges"`
 }
 
 // route: [POST] /api/posts/
 // param: data body PostWithTagIDs ""
 // response: PostWithTags
-func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) newPost(c *gin.Context) (int, interface{}, error) {
 	var m PostWithTagIDs
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
@@ -67,7 +68,7 @@ func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 		return http.StatusInternalServerError, nil, err
 	}
 
-	tags := make([]model.Tag, 0)
+	tags := make([]writer.Tag, 0)
 	if len(m.TagIDs) > 0 {
 		bt := pgx.Batch{}
 		for _, tagID := range m.TagIDs {
@@ -84,7 +85,7 @@ func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 		}
 
 		for rows.Next() {
-			var tag model.Tag
+			var tag writer.Tag
 			err := rows.Scan(&tag.ID, &tag.Title, nil, nil)
 			if err != nil {
 				rows.Close()
@@ -114,7 +115,7 @@ func (r *Router) newPost(c *gin.Context) (int, interface{}, error) {
 // param: id path
 // param: del query "?del=1 remove from database, else set state to 'trash'."
 // return: null
-func (r *Router) delPost(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) delPost(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err
@@ -160,7 +161,7 @@ func (r *Router) delPost(c *gin.Context) (int, interface{}, error) {
 // param: tags query []int "标签ID列表"
 // param: status query string "默认获取非trash的。?status=0"
 // return: []PostWithBadges
-func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) getPosts(c *gin.Context) (int, interface{}, error) {
 	tags := c.QueryArray("tag")
 	status, _ := strconv.Atoi(c.Query("status"))
 
@@ -256,14 +257,14 @@ func (r *Router) getPosts(c *gin.Context) (int, interface{}, error) {
 }
 
 // param: id query "post id"
-// return: model.Post
-func (r *Router) getPost(c *gin.Context) (int, interface{}, error) {
+// return: writer.Post
+func (r *WriterRouter) getPost(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	var p model.Post
+	var p writer.Post
 	err = r.db.QueryRow(context.Background(), `select * from posts where id = $1`, id).
 		Scan(&p.ID, &p.Title, &p.Content, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -275,9 +276,9 @@ func (r *Router) getPost(c *gin.Context) (int, interface{}, error) {
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
-	tags := make([]model.Tag, 0)
+	tags := make([]writer.Tag, 0)
 	for rows.Next() {
-		var tag model.Tag
+		var tag writer.Tag
 		err := rows.Scan(&tag.ID, &tag.Title, &tag.CreatedAt, &tag.Parent)
 		if err != nil {
 			rows.Close()
@@ -297,7 +298,7 @@ func (r *Router) getPost(c *gin.Context) (int, interface{}, error) {
 
 // param: PostWithTagIDs body
 // return: PostWithTags
-func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) updatePost(c *gin.Context) (int, interface{}, error) {
 	var m PostWithTagIDs
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
@@ -325,9 +326,9 @@ func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
 	if err := br.Close(); err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
-	tags := make([]model.Tag, 0)
+	tags := make([]writer.Tag, 0)
 	for rows.Next() {
-		var tag model.Tag
+		var tag writer.Tag
 		err := rows.Scan(&tag.ID, &tag.Title, nil, nil)
 		if err != nil {
 			rows.Close()
@@ -352,7 +353,7 @@ func (r *Router) updatePost(c *gin.Context) (int, interface{}, error) {
 // route: /api/posts/status/:id
 // param: id path
 // param: status query "?status=1"
-func (r *Router) updatePostStatus(c *gin.Context) (int, interface{}, error) {
+func (r *WriterRouter) updatePostStatus(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err

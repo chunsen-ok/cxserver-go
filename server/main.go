@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"cxfw/conf"
+	"cxfw/model/todos"
+	"cxfw/model/writer"
 	"cxfw/orm"
 	"cxfw/router"
+
 	"flag"
 	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -31,23 +34,6 @@ func main() {
 	}
 	fmt.Println(conf.DatabaseURL())
 
-	// db, err := gorm.Open(postgres.Open(conf.DatabaseURL()),
-	// 	&gorm.Config{
-	// 		NowFunc: func() time.Time {
-	// 			return time.Now().UTC()
-	// 		},
-	// 		Logger: logger.Default.LogMode(logger.Info),
-	// 	},
-	// )
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// db.AutoMigrate(&model.SerialNumber{})
-	// db.AutoMigrate(&model.Post{})
-	// db.AutoMigrate(&model.Tag{})
-	// db.AutoMigrate(&model.PostTag{})
-	// db.AutoMigrate(&model.PostBadge{})
 	connConfig, err := pgxpool.ParseConfig(conf.DatabaseURL())
 	if err != nil {
 		log.Fatal(err)
@@ -61,15 +47,45 @@ func main() {
 		log.Fatal(err)
 	}
 
+	setupDB(dbPool)
+
 	srv := gin.Default()
 	// srv.StaticFile("/", "web/index.html")
 	// srv.StaticFile("/favicon.ico", "web/favicon.ico")
 	// srv.Static("/static", "web/static")
 
-	router := router.Init(dbPool)
+	router := router.New(dbPool)
 	router.Routes(srv)
 
 	if err := srv.RunTLS(fmt.Sprintf("%s:%d", conf.SrvHost, conf.SrvPort), conf.Cert, conf.PKey); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func setupDB(db *pgxpool.Pool) {
+	bt := pgx.Batch{}
+	// writer
+	bt.Queue("CREATE SCHEMA IF NOT EXISTS writer;")
+	bt.Queue(writer.PostBadgeSQL)
+	bt.Queue(writer.PostTagSQL)
+	bt.Queue(writer.PostSQL)
+	bt.Queue(writer.TagSQL)
+	// todos
+	bt.Queue("CREATE SCHEMA IF NOT EXISTS todos;")
+	bt.Queue(todos.TodoTasksSQL)
+	bt.Queue(todos.TodoItemsSQL)
+
+	tx, err := db.Begin(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback(context.Background())
+
+	br := tx.SendBatch(context.Background(), &bt)
+	err = br.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tx.Commit(context.Background())
 }

@@ -1,4 +1,4 @@
-package model
+package writer
 
 import "time"
 
@@ -9,7 +9,7 @@ type Tag struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-const tagSQL = `
+const TagSQL = `
 CREATE TABLE IF NOT EXISTS tags (
 	id serial primary key,
 	title text not null,

@@ -1,20 +1,21 @@
-package router
+package writer
 
 import (
 	"context"
-	"cxfw/model"
+	"cxfw/model/writer"
+	"cxfw/router/internal/router"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-func (r *Router) snRoutes(g gin.IRouter) {
-	group := g.Group("/sn")
-	group.POST("/", route(r.genSerialNumber))
+func (r *WriterRouter) snRoutes(ro gin.IRouter) {
+	g := ro.Group("/sn")
+	g.POST("/", router.Route(r.genSerialNumber))
 }
 
-func (r *Router) genSerialNumber(c *gin.Context) (int, interface{}, error) {
-	var m model.SerialNumber
+func (r *WriterRouter) genSerialNumber(c *gin.Context) (int, interface{}, error) {
+	var m writer.SerialNumber
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}

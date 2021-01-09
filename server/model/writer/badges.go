@@ -1,4 +1,4 @@
-package model
+package writer
 
 type PostBadge struct {
 	BadgeName  int     `json:"badge_name"`
@@ -6,7 +6,7 @@ type PostBadge struct {
 	PostID     int     `json:"post_id"`
 }
 
-const postBadgeSQL = `
+const PostBadgeSQL = `
 CREATE TABLE IF NOT EXISTS post_badges (
 	badge_name integer NOT NULL,
 	badge_value varchar(200) NULL,
