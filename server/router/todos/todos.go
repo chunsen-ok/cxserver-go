@@ -2,28 +2,33 @@ package todos
 
 import (
 	"cxfw/router/internal/router"
-	"net/http"
+	"cxfw/router/todos/dao"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type Service struct {
-	db *pgxpool.Pool
+	dao *dao.TodoDao
 }
 
 func New(db *pgxpool.Pool) *Service {
 	return &Service{
-		db: db,
+		dao: dao.New(db),
 	}
 }
 
 func (s *Service) Init(r gin.IRouter) {
 	g := r.Group("/todos")
 
-	g.POST("/", router.Route(s.New))
-}
+	g1 := g.Group("/items")
+	g1.POST("/", router.Route(s.New))
+	g1.DELETE("/:id", router.Route(s.Del))
+	g1.GET("/:id", router.Route(s.Get))
+	g1.GET("/", router.Route(s.GetAll))
+	g1.PUT("/", router.Route(s.Update))
 
-func (s *Service) New(c *gin.Context) (int, interface{}, error) {
-	return http.StatusOK, nil, nil
+	g2 := g.Group("/tasks")
+	g2.POST("/", router.Route(s.NewTask))
+	g2.GET("/", router.Route(s.GetAllTask))
 }
