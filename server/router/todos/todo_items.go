@@ -1,7 +1,7 @@
 package todos
 
 import (
-	"cxfw/model/todos"
+	"cxfw/router/todos/dao"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -11,7 +11,7 @@ import (
 
 // url: [POST] /api/todos/items/
 func (s *Service) New(c *gin.Context) (int, interface{}, error) {
-	var m todos.TodoItem
+	var m dao.NewTodoItemParam
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
