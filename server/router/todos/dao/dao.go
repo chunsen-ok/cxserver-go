@@ -50,8 +50,11 @@ func (d *TodoDao) New(p *NewTodoItemParam) (int, *todos.TodoItem, error) {
 			Scan(&m.ID, &m.TaskID, &m.Title, &m.Content, &m.Importance, &m.Urgency, &m.CreatedAt, &m.DeadLine, &m.Status)
 		return err
 	})
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
 
-	return http.StatusOK, &m, err
+	return http.StatusOK, &m, nil
 }
 
 func (d *TodoDao) Del(itemID int) (int, error) {
@@ -59,6 +62,9 @@ func (d *TodoDao) Del(itemID int) (int, error) {
 		_, err := tx.Exec(context.Background(), `update todos.todo_items set status = $1 where id = $2;`, types.StatusTrash, itemID)
 		return err
 	})
+	if err != nil {
+		return http.StatusInternalServerError, err
+	}
 
 	return http.StatusOK, err
 }

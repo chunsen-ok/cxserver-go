@@ -30,5 +30,6 @@ func (s *Service) Init(r gin.IRouter) {
 
 	g2 := g.Group("/tasks")
 	g2.POST("/", router.Route(s.NewTask))
+	g2.DELETE("/:id", router.Route(s.DelTask))
 	g2.GET("/", router.Route(s.GetAllTask))
 }

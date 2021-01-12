@@ -44,6 +44,7 @@ func SqlIn(arr interface{}) string {
 type TransactionFunc = func(tx pgx.Tx) error
 
 // NewTx .
+// 当 fn 返回错误不为 nil 时，会回滚事务。
 func NewTx(db *pgxpool.Pool, fn TransactionFunc) error {
 	tx, err := db.Begin(context.Background())
 	if err != nil {
