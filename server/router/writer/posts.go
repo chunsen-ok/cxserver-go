@@ -27,12 +27,14 @@ func (r *WriterRouter) postsRoutes(ro gin.IRouter) {
 
 type PostWithTagIDs struct {
 	writer.Post
-	TagIDs []int `json:"tags"`
+	Title  string `json:"title"`
+	TagIDs []int  `json:"tags"`
 }
 
 type PostWithTags struct {
 	writer.Post
-	Tags []writer.Tag `json:"tags"`
+	Title string       `json:"title"`
+	Tags  []writer.Tag `json:"tags"`
 }
 
 type PostBadge struct {
@@ -42,6 +44,7 @@ type PostBadge struct {
 
 type PostWithBadges struct {
 	writer.Post
+	Title  string      `json:"title"`
 	Badges []PostBadge `json:"badges"`
 }
 
@@ -62,8 +65,8 @@ func (r *WriterRouter) newPost(c *gin.Context) (int, interface{}, error) {
 	defer tx.Rollback(context.Background())
 
 	err = tx.QueryRow(context.Background(),
-		`insert into posts values (default, $1, $2, $3, now() at time zone 'utc', now() at time zone 'utc') returning id`,
-		m.Title, m.Content, types.StatusActive).Scan(&m.ID)
+		`insert into posts values (default, $1, $2, now() at time zone 'utc', now() at time zone 'utc') returning id`,
+		m.Content, types.StatusActive).Scan(&m.ID)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -105,8 +108,9 @@ func (r *WriterRouter) newPost(c *gin.Context) (int, interface{}, error) {
 	}
 
 	rm := PostWithTags{
-		Post: m.Post,
-		Tags: tags,
+		Post:  m.Post,
+		Title: m.Title,
+		Tags:  tags,
 	}
 
 	return http.StatusOK, &rm, nil
@@ -166,11 +170,21 @@ func (r *WriterRouter) getPosts(c *gin.Context) (int, interface{}, error) {
 	status, _ := strconv.Atoi(c.Query("status"))
 
 	sb := strings.Builder{}
-	sb.WriteString(`with t as (
+	sb.WriteString(`with t1 as (
 		select post_id, jsonb_build_object('badge_name', badge_name, 'badge_value', badge_value) as badge from post_badges
-	) select p.id, p.title, p.status, p.created_at, p.updated_at, t.badge from posts p left join t on t.post_id = p.id where status = $1`)
+	),
+	t2 as (
+		with t as (
+			select id, position(chr(10) in "content") as first_line_end from posts
+		) select p.id, p.status, p.created_at, p.updated_at,
+			case t.first_line_end
+				when 0 then p."content"
+				else substring(p."content" from 0 for t.first_line_end) end
+			as title
+		from posts p left join t on t.id = p.id
+	) select t2.*, t1.badge from t2 left join t1 on t1.post_id = t2.id where t2.status = $1`)
 	if len(tags) > 0 {
-		sb.WriteString(fmt.Sprintf(` and p.id in (select post_id from post_tags where tag_id in (%s))`, strings.Join(tags, ",")))
+		sb.WriteString(fmt.Sprintf(` and t2.id in (select post_id from post_tags where tag_id in (%s))`, strings.Join(tags, ",")))
 	}
 
 	rows, err := r.db.Query(context.Background(), sb.String(), status)
@@ -181,7 +195,7 @@ func (r *WriterRouter) getPosts(c *gin.Context) (int, interface{}, error) {
 	for rows.Next() {
 		var p PostWithBadges
 		var b *PostBadge
-		err := rows.Scan(&p.ID, &p.Title, &p.Status, &p.CreatedAt, &p.UpdatedAt, &b)
+		err := rows.Scan(&p.ID, &p.Status, &p.CreatedAt, &p.UpdatedAt, &p.Title, &b)
 		if err != nil {
 			rows.Close()
 			return http.StatusInternalServerError, nil, err
@@ -266,7 +280,7 @@ func (r *WriterRouter) getPost(c *gin.Context) (int, interface{}, error) {
 
 	var p writer.Post
 	err = r.db.QueryRow(context.Background(), `select * from posts where id = $1`, id).
-		Scan(&p.ID, &p.Title, &p.Content, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		Scan(&p.ID, &p.Content, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -311,8 +325,8 @@ func (r *WriterRouter) updatePost(c *gin.Context) (int, interface{}, error) {
 	defer tx.Rollback(context.Background())
 
 	bt := pgx.Batch{}
-	bt.Queue(`update posts set title = $1, content = $2, updated_at = now() at time zone 'utc' where id = $3`,
-		m.Title, m.Content, m.ID)
+	bt.Queue(`update posts set content = $1, updated_at = now() at time zone 'utc' where id = $2`,
+		m.Content, m.ID)
 	bt.Queue(`delete from post_tags where post_id = $1`, m.ID)
 	for _, tagID := range m.TagIDs {
 		bt.Queue(`insert into post_tags values ($1, $2);`, m.ID, tagID)
@@ -343,8 +357,9 @@ func (r *WriterRouter) updatePost(c *gin.Context) (int, interface{}, error) {
 	}
 
 	rm := PostWithTags{
-		Post: m.Post,
-		Tags: tags,
+		Post:  m.Post,
+		Title: m.Title,
+		Tags:  tags,
 	}
 
 	return http.StatusOK, &rm, nil
