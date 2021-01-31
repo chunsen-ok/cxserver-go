@@ -162,7 +162,7 @@ func (r *WriterRouter) delPost(c *gin.Context) (int, interface{}, error) {
 }
 
 // url: [GET] /api/posts/
-// param: tags query []int "标签ID列表"
+// param: tags query []int "标签ID列表, -1 表示获取全部，-2 表示获取没有设置标签的"
 // param: status query string "默认获取非trash的。?status=0"
 // return: []PostWithBadges
 func (r *WriterRouter) getPosts(c *gin.Context) (int, interface{}, error) {
@@ -182,10 +182,27 @@ func (r *WriterRouter) getPosts(c *gin.Context) (int, interface{}, error) {
 				else substring(p."content" from 0 for t.first_line_end) end
 			as title
 		from posts p left join t on t.id = p.id
-	) select t2.*, t1.badge from t2 left join t1 on t1.post_id = t2.id where t2.status = $1`)
+	) select t2.*, t1.badge from t2 left join t1 on t1.post_id = t2.id `)
+	// shit begin
 	if len(tags) > 0 {
-		sb.WriteString(fmt.Sprintf(` and t2.id in (select post_id from post_tags where tag_id in (%s))`, strings.Join(tags, ",")))
+		if len(tags) == 1 && tags[0] == "-1" {
+			// ... get all
+			// do nothing
+			sb.WriteString(`where t2.status = $1`)
+		} else {
+			sort.Strings(tags)
+
+			// get untagged posts
+			if idx := sort.SearchStrings(tags, "-2"); tags[idx] == "-2" {
+				sb.WriteString(`left join post_tags pt on pt.post_id = t2.id where t2.status = $1 and (pt.tag_id = 0 or pt.tag_id is null)`)
+			} else {
+				sb.WriteString(fmt.Sprintf(`where t2.status = $1 and t2.id in (select post_id from post_tags where tag_id in (%s))`, strings.Join(tags, ",")))
+			}
+		}
+	} else {
+		sb.WriteString(`where t2.status = $1`)
 	}
+	// shit end
 
 	rows, err := r.db.Query(context.Background(), sb.String(), status)
 	if err != nil {
