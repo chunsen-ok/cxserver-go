@@ -2,6 +2,7 @@ package router
 
 import (
 	"cxfw/conf"
+	"cxfw/router/fragments"
 	"cxfw/router/todos"
 	"cxfw/router/writer"
 
@@ -28,4 +29,5 @@ func (s *Router) Routes(router gin.IRouter) {
 	g := router.Group("/api", gin.BasicAuth(conf.Instance().BasicAuth))
 	s.writer.Init(g)
 	s.todos.Init(g)
+	fragments.Init(g)
 }
