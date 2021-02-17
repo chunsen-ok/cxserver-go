@@ -13,7 +13,7 @@ type Post struct {
 }
 
 const PostSQL = `
-CREATE TABLE IF NOT EXISTS posts (
+CREATE TABLE IF NOT EXISTS writer.posts (
 	id serial primary key,
 	content text null,
 	status smallint not null,

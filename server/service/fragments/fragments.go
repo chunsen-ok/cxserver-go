@@ -2,8 +2,8 @@ package fragments
 
 import (
 	"cxfw/model/fragments"
-	"cxfw/router/fragments/dao"
-	"cxfw/router/internal/router"
+	"cxfw/service/fragments/dao"
+	"cxfw/service/internal/router"
 	"errors"
 	"net/http"
 	"strconv"

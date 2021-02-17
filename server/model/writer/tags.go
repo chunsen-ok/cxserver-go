@@ -10,7 +10,7 @@ type Tag struct {
 }
 
 const TagSQL = `
-CREATE TABLE IF NOT EXISTS tags (
+CREATE TABLE IF NOT EXISTS writer.tags (
 	id serial primary key,
 	title text not null,
 	parent integer default -1,

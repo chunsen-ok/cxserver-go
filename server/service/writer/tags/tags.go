@@ -1,32 +1,33 @@
-package writer
+package tags
 
 import (
 	"context"
+	"cxfw/db"
 	"cxfw/model/writer"
-	"cxfw/router/internal/router"
+	"cxfw/service/internal/router"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-func (r *WriterRouter) tagsRoutes(ro gin.IRouter) {
-	g := ro.Group("/tags")
-	g.POST("/", router.Route(r.newTag))
-	g.DELETE("/:id", router.Route(r.delTag))
-	g.GET("/", router.Route(r.getTags))
-	g.GET("/:id", router.Route(r.getTag))
-	g.PUT("/", router.Route(r.updateTag))
+func Init(r gin.IRouter) {
+	g := r.Group("/tags")
+	g.POST("/", router.Route(add))
+	g.DELETE("/:id", router.Route(del))
+	g.GET("/", router.Route(getAll))
+	g.GET("/:id", router.Route(get))
+	g.PUT("/", router.Route(update))
 }
 
-func (r *WriterRouter) newTag(c *gin.Context) (int, interface{}, error) {
+func add(c *gin.Context) (int, interface{}, error) {
 	var m writer.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 	m.ID = 0
 
-	tx, err := r.db.Begin(context.Background())
+	tx, err := db.S().Begin(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -47,13 +48,13 @@ func (r *WriterRouter) newTag(c *gin.Context) (int, interface{}, error) {
 
 // 删除一个标签时，将其子标签放到其父标签下
 // 关联的 post直接删除关联关系即可
-func (r *WriterRouter) delTag(c *gin.Context) (int, interface{}, error) {
+func del(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err
 	}
 
-	tx, err := r.db.Begin(context.Background())
+	tx, err := db.S().Begin(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -76,8 +77,8 @@ func (r *WriterRouter) delTag(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, nil, nil
 }
 
-func (r *WriterRouter) getTags(c *gin.Context) (int, interface{}, error) {
-	rows, err := r.db.Query(context.Background(), `select * from tags order by created_at asc;`)
+func getAll(c *gin.Context) (int, interface{}, error) {
+	rows, err := db.S().Query(context.Background(), `select * from tags order by created_at asc;`)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -97,14 +98,14 @@ func (r *WriterRouter) getTags(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, tags, nil
 }
 
-func (r *WriterRouter) getTag(c *gin.Context) (int, interface{}, error) {
+func get(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusOK, nil, err
 	}
 
 	var m writer.Tag
-	err = r.db.QueryRow(context.Background(), `select * from tags where id = $1`, id).
+	err = db.S().QueryRow(context.Background(), `select * from tags where id = $1`, id).
 		Scan(&m.ID, &m.Title, &m.CreatedAt)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
@@ -113,13 +114,13 @@ func (r *WriterRouter) getTag(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, &m, nil
 }
 
-func (r *WriterRouter) updateTag(c *gin.Context) (int, interface{}, error) {
+func update(c *gin.Context) (int, interface{}, error) {
 	var m writer.Tag
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	tx, err := r.db.Begin(context.Background())
+	tx, err := db.S().Begin(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}

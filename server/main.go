@@ -4,10 +4,13 @@ import (
 	"context"
 	"cxfw/conf"
 	"cxfw/db"
+	"cxfw/model"
 	"cxfw/model/fragments"
 	"cxfw/model/todos"
 	"cxfw/model/writer"
-	"cxfw/router"
+	"cxfw/orm"
+	"cxfw/service"
+	"strings"
 
 	"flag"
 	"fmt"
@@ -16,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -37,14 +41,14 @@ func main() {
 
 	pool := db.Init(conf.DatabaseURL())
 	setupDB(pool)
+	initDB(pool)
 
 	srv := gin.Default()
 	// srv.StaticFile("/", "web/index.html")
 	// srv.StaticFile("/favicon.ico", "web/favicon.ico")
 	// srv.Static("/static", "web/static")
 
-	router := router.New(pool)
-	router.Routes(srv)
+	service.Init(srv)
 
 	if err := srv.RunTLS(fmt.Sprintf("%s:%d", conf.SrvHost, conf.SrvPort), conf.Cert, conf.PKey); err != nil {
 		log.Fatal(err)
@@ -53,6 +57,8 @@ func main() {
 
 func setupDB(db *pgxpool.Pool) {
 	bt := pgx.Batch{}
+	// system
+	bt.Queue(model.UserSQL)
 	// writer
 	bt.Queue("CREATE SCHEMA IF NOT EXISTS writer;")
 	bt.Queue(writer.PostBadgeSQL)
@@ -80,4 +86,24 @@ func setupDB(db *pgxpool.Pool) {
 	}
 
 	tx.Commit(context.Background())
+}
+
+func initDB(db *pgxpool.Pool) {
+	_ = orm.NewTx(db, func(tx pgx.Tx) error {
+		bt := pgx.Batch{}
+
+		// init data
+		pass, _ := bcrypt.GenerateFromPassword([]byte("lcs1996"), bcrypt.DefaultCost)
+		sb := strings.Builder{}
+		sb.Write(pass)
+		bt.Queue("INSERT INTO users (account, name, password) values ('lcs','lcs',$1) ON CONFLICT DO NOTHING;", sb.String())
+
+		br := tx.SendBatch(context.Background(), &bt)
+		err := br.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return nil
+	})
 }

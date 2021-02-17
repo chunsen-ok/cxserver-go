@@ -1,9 +1,10 @@
-package writer
+package badges
 
 import (
 	"context"
+	"cxfw/db"
 	"cxfw/model/writer"
-	"cxfw/router/internal/router"
+	"cxfw/service/internal/router"
 	"net/http"
 	"strconv"
 
@@ -12,23 +13,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (r *WriterRouter) badgesRoutes(ro gin.IRouter) {
-	g := ro.Group("/badges")
-	g.POST("/", router.Route(r.newPostBadge))
-	g.DELETE("/", router.Route(r.removePostBadge))
+func Init(r gin.IRouter) {
+	g := r.Group("/badges")
+	g.POST("/", router.Route(add))
+	g.DELETE("/", router.Route(del))
 }
 
 // route: [POST] /api/badges/
 // param: id path int "post id"
 // param: name path int "badge name by badge enums"
 // param: value query string "badge value"
-func (r *WriterRouter) newPostBadge(c *gin.Context) (int, interface{}, error) {
+func add(c *gin.Context) (int, interface{}, error) {
 	var m writer.PostBadge
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	tx, err := r.db.Begin(context.Background())
+	tx, err := db.S().Begin(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}
@@ -81,13 +82,13 @@ func (r *WriterRouter) newPostBadge(c *gin.Context) (int, interface{}, error) {
 
 // route: [DELETE] /api/badges/
 // param: data body writer.PostBadge "match data"
-func (r *WriterRouter) removePostBadge(c *gin.Context) (int, interface{}, error) {
+func del(c *gin.Context) (int, interface{}, error) {
 	var m writer.PostBadge
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	tx, err := r.db.Begin(context.Background())
+	tx, err := db.S().Begin(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}

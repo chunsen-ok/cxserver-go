@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"cxfw/db"
 	"cxfw/model/todos"
 	"cxfw/orm"
 	"cxfw/types"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Dimen
@@ -20,16 +20,6 @@ const (
 	DimenUrgency    = 1
 	DimenDeadLine   = 2
 )
-
-type TodoDao struct {
-	db *pgxpool.Pool
-}
-
-func New(db *pgxpool.Pool) *TodoDao {
-	return &TodoDao{
-		db: db,
-	}
-}
 
 type NewTodoItemParam struct {
 	ID         int        `json:"id"`
@@ -41,9 +31,9 @@ type NewTodoItemParam struct {
 	DeadLine   *time.Time `json:"dead_line"`
 }
 
-func (d *TodoDao) New(p *NewTodoItemParam) (int, *todos.TodoItem, error) {
+func Add(p *NewTodoItemParam) (int, *todos.TodoItem, error) {
 	var m todos.TodoItem
-	err := orm.NewTx(d.db, func(tx pgx.Tx) error {
+	err := orm.NewTx(db.S(), func(tx pgx.Tx) error {
 		err := tx.QueryRow(context.Background(),
 			`insert into todos.todo_items values (default, $1,$2,$3,$4,$5,now() at time zone 'utc',$6 at time zone 'utc', default) returning *;`,
 			p.TaskID, p.Title, p.Content, p.Importance, p.Urgency, p.DeadLine).
@@ -57,8 +47,8 @@ func (d *TodoDao) New(p *NewTodoItemParam) (int, *todos.TodoItem, error) {
 	return http.StatusOK, &m, nil
 }
 
-func (d *TodoDao) Del(itemID int) (int, error) {
-	err := orm.NewTx(d.db, func(tx pgx.Tx) error {
+func Del(itemID int) (int, error) {
+	err := orm.NewTx(db.S(), func(tx pgx.Tx) error {
 		_, err := tx.Exec(context.Background(), `update todos.todo_items set status = $1 where id = $2;`, types.StatusTrash, itemID)
 		return err
 	})
@@ -69,7 +59,7 @@ func (d *TodoDao) Del(itemID int) (int, error) {
 	return http.StatusOK, err
 }
 
-func (d *TodoDao) GetAll(dimen, taskID int) (int, []todos.TodoItem, error) {
+func GetAll(dimen, taskID int) (int, []todos.TodoItem, error) {
 	sql := `with t as (select *, case "%s" when 0 then 1234 else "%s" end as rk from todos.todo_items where status <> $1) select * from t `
 	sb := new(strings.Builder)
 	rank := true
@@ -94,7 +84,7 @@ func (d *TodoDao) GetAll(dimen, taskID int) (int, []todos.TodoItem, error) {
 
 	sb.WriteString(";")
 
-	rows, err := d.db.Query(context.Background(), sb.String(), types.StatusTrash)
+	rows, err := db.S().Query(context.Background(), sb.String(), types.StatusTrash)
 	if err != nil {
 		return http.StatusInternalServerError, nil, err
 	}

@@ -1,7 +1,8 @@
-package todos
+package items
 
 import (
-	"cxfw/router/todos/dao"
+	"cxfw/service/internal/router"
+	"cxfw/service/todos/items/dao"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,32 +10,42 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func Init(r gin.IRouter) {
+	g := r.Group("/items")
+	g.POST("/", router.Route(add))
+	g.DELETE("/:id", router.Route(del))
+	g.GET("/:id", router.Route(get))
+	g.GET("/", router.Route(getAll))
+	g.PUT("/", router.Route(update))
+
+}
+
 // url: [POST] /api/todos/items/
-func (s *Service) New(c *gin.Context) (int, interface{}, error) {
+func add(c *gin.Context) (int, interface{}, error) {
 	var m dao.NewTodoItemParam
 	if err := c.ShouldBindJSON(&m); err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	code, data, err := s.dao.New(&m)
+	code, data, err := dao.Add(&m)
 
 	return code, data, err
 }
 
 // url: [DELETE] /api/todos/items/{id}
-func (s *Service) Del(c *gin.Context) (int, interface{}, error) {
+func del(c *gin.Context) (int, interface{}, error) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		return http.StatusBadRequest, nil, err
 	}
 
-	code, err := s.dao.Del(id)
+	code, err := dao.Del(id)
 
 	return code, nil, err
 }
 
 // url: [GET] /api/todos/items/{id}
-func (s *Service) Get(c *gin.Context) (int, interface{}, error) {
+func get(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, nil, nil
 }
 
@@ -42,7 +53,7 @@ func (s *Service) Get(c *gin.Context) (int, interface{}, error) {
 // param: dimen query int "0:重要性, 1:紧急性, 2:截止时间"
 // param: task query int "task id; 0:所有"
 // response: []todos.TodoItem
-func (s *Service) GetAll(c *gin.Context) (int, interface{}, error) {
+func getAll(c *gin.Context) (int, interface{}, error) {
 	dimen, err := strconv.Atoi(c.Query("dimen"))
 	if err != nil {
 		return http.StatusBadRequest, nil, err
@@ -51,12 +62,12 @@ func (s *Service) GetAll(c *gin.Context) (int, interface{}, error) {
 	taskID, _ := strconv.Atoi(c.Query("task"))
 
 	fmt.Println(dimen, taskID)
-	code, data, err := s.dao.GetAll(dimen, taskID)
+	code, data, err := dao.GetAll(dimen, taskID)
 
 	return code, data, err
 }
 
 // url: [PUT] /api/todos/items/
-func (s *Service) Update(c *gin.Context) (int, interface{}, error) {
+func update(c *gin.Context) (int, interface{}, error) {
 	return http.StatusOK, nil, nil
 }

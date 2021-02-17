@@ -7,7 +7,7 @@ type PostBadge struct {
 }
 
 const PostBadgeSQL = `
-CREATE TABLE IF NOT EXISTS post_badges (
+CREATE TABLE IF NOT EXISTS writer.post_badges (
 	badge_name integer NOT NULL,
 	badge_value varchar(200) NULL,
 	post_id integer NOT NULL
