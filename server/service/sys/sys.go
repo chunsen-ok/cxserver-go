@@ -1,9 +1,13 @@
 package sys
 
 import (
+	"cxfw/service/sys/fs"
+
 	"github.com/gin-gonic/gin"
 )
 
 func Init(r gin.IRouter) {
-	_ = r.Group("/sys")
+	g := r.Group("/sys")
+
+	fs.Init(g)
 }

@@ -12,3 +12,4 @@ go.sum
 
 web/
 perms/
+.res/
