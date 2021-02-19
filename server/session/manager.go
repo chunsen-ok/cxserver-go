@@ -1,8 +1,8 @@
-package sessionMgr
+package session
 
 import (
-	"cxfw/session"
 	"cxfw/session/memory"
+	"cxfw/session/ses"
 	"net/http"
 	"time"
 
@@ -11,35 +11,45 @@ import (
 
 const gcInterval = 30 * time.Minute
 
+var instance *CookieSessionManager
+
 type CookieSessionManager struct {
-	maxLifeTime int
+	maxLifeTime int64
 	cookieName  string
-	provider    session.IProvider
+	provider    ses.IProvider
 }
 
-func Init(cookieName string, maxLifeTime int) *CookieSessionManager {
-	s := &CookieSessionManager{
+func Init(cookieName string, maxLifeTime int64) *CookieSessionManager {
+	instance = &CookieSessionManager{
 		maxLifeTime: maxLifeTime,
 		cookieName:  cookieName,
 		provider:    memory.NewProvider(),
 	}
 
-	return s
+	return instance
 }
 
-func (s *CookieSessionManager) StartSession(c *gin.Context) session.ISession {
-	id := sessionID()
+func S() *CookieSessionManager {
+	return instance
+}
+
+func (s *CookieSessionManager) StartSession(c *gin.Context) ses.ISession {
+	id := ses.SessionID()
 	se := s.provider.NewSession(id)
 
 	cookie := http.Cookie{
-		Name:     s.cookieName,
-		Value:    id,
-		Path:     "/",
-		HttpOnly: true,
-		Expires:  time.Now().Add(time.Duration(s.maxLifeTime)),
-		MaxAge:   s.maxLifeTime,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
+		Name:       s.cookieName,
+		Value:      id,
+		Path:       "/",
+		Domain:     "",
+		Expires:    time.Now().Add(time.Duration(s.maxLifeTime)),
+		RawExpires: "",
+		MaxAge:     int(s.maxLifeTime),
+		Secure:     true,
+		HttpOnly:   true,
+		SameSite:   http.SameSiteLaxMode,
+		Raw:        "",
+		Unparsed:   []string{},
 	}
 
 	http.SetCookie(c.Writer, &cookie)
@@ -65,7 +75,7 @@ func (s *CookieSessionManager) StopSession(c *gin.Context) bool {
 		HttpOnly: true,
 		Expires:  time.Now(),
 		MaxAge:   -1,
-		Secure:   false,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	}
 
@@ -74,13 +84,14 @@ func (s *CookieSessionManager) StopSession(c *gin.Context) bool {
 	return true
 }
 
-func (s *CookieSessionManager) GetSession(c *gin.Context) session.ISession {
+func (s *CookieSessionManager) GetSession(c *gin.Context) ses.ISession {
 	sessionID, err := c.Cookie(s.cookieName)
 	if err != nil {
 		return nil
 	}
 
-	return s.provider.GetSession(sessionID)
+	se := s.provider.GetSession(sessionID)
+	return se
 }
 
 func (s *CookieSessionManager) GC() {

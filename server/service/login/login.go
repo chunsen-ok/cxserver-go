@@ -6,6 +6,8 @@ import (
 	"cxfw/service/login/dao"
 	"net/http"
 
+	"cxfw/session"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,12 +23,25 @@ func in(c *gin.Context) (int, interface{}, error) {
 		return http.StatusBadRequest, nil, err
 	}
 
-	code, ok, err := dao.Login(&m)
+	code, data, err := dao.Login(&m)
 
-	return code, ok, err
+	se := session.S().GetSession(c)
+	if se == nil {
+		se = session.S().StartSession(c)
+		if se == nil {
+			return http.StatusInternalServerError, nil, nil
+		}
+	} else {
+		se.Update()
+	}
+
+	se.Set("info", data)
+
+	return code, data, err
 }
 
 func out(c *gin.Context) (int, interface{}, error) {
+	session.S().StopSession(c)
 	ok := dao.Logout(nil)
 	return http.StatusOK, ok, nil
 }

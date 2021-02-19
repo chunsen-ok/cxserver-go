@@ -10,7 +10,9 @@ import (
 	"cxfw/model/writer"
 	"cxfw/orm"
 	"cxfw/service"
+	"cxfw/session"
 	"strings"
+	"time"
 
 	"flag"
 	"fmt"
@@ -49,6 +51,10 @@ func main() {
 	// srv.Static("/static", "web/static")
 
 	service.Init(srv)
+
+	session.Init("session_id", int64(time.Hour))
+
+	go session.S().GC()
 
 	if err := srv.RunTLS(fmt.Sprintf("%s:%d", conf.SrvHost, conf.SrvPort), conf.Cert, conf.PKey); err != nil {
 		log.Fatal(err)

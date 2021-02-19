@@ -1,7 +1,7 @@
 package memory
 
 import (
-	"cxfw/session"
+	"cxfw/session/ses"
 	"sync"
 	"time"
 )
@@ -18,7 +18,7 @@ func NewProvider() *MemoryProvider {
 	}
 }
 
-func (s *MemoryProvider) NewSession(sessionID string) session.ISession {
+func (s *MemoryProvider) NewSession(sessionID string) ses.ISession {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -46,7 +46,7 @@ func (s *MemoryProvider) DelSession(sessionID string) bool {
 	return false
 }
 
-func (s *MemoryProvider) GetSession(sessionID string) session.ISession {
+func (s *MemoryProvider) GetSession(sessionID string) ses.ISession {
 	if se, ok := s.sessions[sessionID]; ok {
 		return se
 	}
@@ -54,8 +54,17 @@ func (s *MemoryProvider) GetSession(sessionID string) session.ISession {
 	return nil
 }
 
+func (s *MemoryProvider) UpdateSession(sessionID string) ses.ISession {
+	if se, ok := s.sessions[sessionID]; ok {
+		se.Update()
+		return se
+	}
+
+	return nil
+}
+
 // 删除过期 session
-func (s *MemoryProvider) GC(maxLifeTime int) {
+func (s *MemoryProvider) GC(maxLifeTime int64) {
 	now := time.Now().Unix()
 
 	s.mtx.Lock()
@@ -63,7 +72,7 @@ func (s *MemoryProvider) GC(maxLifeTime int) {
 
 	expired := make([]string, 0)
 	for k, se := range s.sessions {
-		if se.startTime.Unix()+int64(maxLifeTime) < now {
+		if se.startTime.Unix()+maxLifeTime < now {
 			expired = append(expired, k)
 		}
 	}
