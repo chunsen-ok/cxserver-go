@@ -5,6 +5,7 @@ import (
 	"cxfw/types"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,12 +13,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	resDir = "./.res"
-)
+func resDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".cxfw", ".res")
+}
 
 func Init(r gin.IRouter) {
-	os.Mkdir(resDir, os.ModeDir)
+	fmt.Println(resDir())
+	if err := os.MkdirAll(resDir(), os.ModeDir); err != nil {
+		log.Println("mkdir error:", err)
+	}
 
 	g := r.Group("/fs")
 	g.POST("/", router.Route(add))
@@ -36,7 +41,7 @@ func add(c *gin.Context) (int, interface{}, error) {
 
 	for _, file := range files {
 		resname := filepath.Base(file.Filename)
-		resPath := filepath.Join(resDir, resname)
+		resPath := filepath.Join(resDir(), resname)
 		c.SaveUploadedFile(file, resPath)
 	}
 
@@ -47,14 +52,14 @@ func add(c *gin.Context) (int, interface{}, error) {
 func del(c *gin.Context) (int, interface{}, error) {
 	dres := filepath.Base(c.Query("name"))
 	if len(dres) != 0 {
-		filepath.Walk(resDir, func(path string, info os.FileInfo, err error) error {
-			if info.IsDir() && path != resDir {
+		filepath.Walk(resDir(), func(path string, info os.FileInfo, err error) error {
+			if info.IsDir() && path != resDir() {
 				return filepath.SkipDir
 			}
 
 			resname := filepath.Base(path)
 			if dres == resname {
-				resPath := filepath.Join(resDir, resname)
+				resPath := filepath.Join(resDir(), resname)
 				os.Remove(resPath)
 				return errors.New("stop walk")
 			}
@@ -70,7 +75,7 @@ func del(c *gin.Context) (int, interface{}, error) {
 func get(c *gin.Context) {
 	resname := filepath.Base(c.Query("name"))
 	if len(resname) != 0 {
-		respath := filepath.Join(resDir, resname)
+		respath := filepath.Join(resDir(), resname)
 		c.FileAttachment(respath, resname)
 		return
 	}
@@ -79,9 +84,9 @@ func get(c *gin.Context) {
 
 func getAll(c *gin.Context) (int, interface{}, error) {
 	resLst := make([]string, 0)
-	filepath.Walk(resDir, func(path string, info os.FileInfo, err error) error {
+	filepath.Walk(resDir(), func(path string, info os.FileInfo, err error) error {
 		fmt.Println("--> res:", path)
-		if info.IsDir() && path != resDir {
+		if info == nil || (info.IsDir() && path != resDir()) {
 			return filepath.SkipDir
 		}
 
