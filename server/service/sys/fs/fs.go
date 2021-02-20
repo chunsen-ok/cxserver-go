@@ -20,7 +20,7 @@ func resDir() string {
 
 func Init(r gin.IRouter) {
 	fmt.Println(resDir())
-	if err := os.MkdirAll(resDir(), os.ModeDir); err != nil {
+	if err := os.MkdirAll(resDir(), os.ModeDir|0755); err != nil {
 		log.Println("mkdir error:", err)
 	}
 
