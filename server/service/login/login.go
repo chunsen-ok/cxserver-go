@@ -24,6 +24,9 @@ func in(c *gin.Context) (int, interface{}, error) {
 	}
 
 	code, data, err := dao.Login(&m)
+	if code != http.StatusOK || err != nil {
+		return code, data, err
+	}
 
 	se := session.S().GetSession(c)
 	if se == nil {

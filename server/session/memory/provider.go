@@ -2,6 +2,7 @@ package memory
 
 import (
 	"cxfw/session/ses"
+	"log"
 	"sync"
 	"time"
 )
@@ -66,18 +67,21 @@ func (s *MemoryProvider) UpdateSession(sessionID string) ses.ISession {
 // 删除过期 session
 func (s *MemoryProvider) GC(maxLifeTime int64) {
 	now := time.Now().Unix()
+	log.Println("provider GC: ", now)
 
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	expired := make([]string, 0)
 	for k, se := range s.sessions {
+		log.Println("session :", k, " time: ", se.startTime.Unix(), "max life time: ", maxLifeTime)
 		if se.startTime.Unix()+maxLifeTime < now {
 			expired = append(expired, k)
 		}
 	}
 
 	for _, k := range expired {
+		log.Println("expired:", k)
 		delete(s.sessions, k)
 	}
 }

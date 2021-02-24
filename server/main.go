@@ -52,7 +52,8 @@ func main() {
 
 	service.Init(srv)
 
-	session.Init("session_id", int64(time.Hour))
+	session.Init("session_id", int64(4*time.Hour.Seconds()))
+	log.Println("max life time:", int64(4*time.Hour.Seconds()))
 
 	go session.S().GC()
 

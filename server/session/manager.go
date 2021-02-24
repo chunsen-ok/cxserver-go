@@ -3,13 +3,14 @@ package session
 import (
 	"cxfw/session/memory"
 	"cxfw/session/ses"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
-const gcInterval = 30 * time.Minute
+const gcInterval = 30 * time.Second
 
 var instance *CookieSessionManager
 
@@ -95,6 +96,7 @@ func (s *CookieSessionManager) GetSession(c *gin.Context) ses.ISession {
 }
 
 func (s *CookieSessionManager) GC() {
+	log.Println("Manager GC")
 	s.provider.GC(s.maxLifeTime)
 	time.AfterFunc(gcInterval, func() { s.GC() })
 }
